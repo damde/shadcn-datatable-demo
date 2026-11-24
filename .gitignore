@@ -31,3 +31,11 @@ dist-ssr
 
 # typescript
 *.tsbuildinfo
+
+# Testing & Storybook build outputs
+test-results
+playwright-report
+blob-report
+playwright/.cache
+coverage
+storybook-static

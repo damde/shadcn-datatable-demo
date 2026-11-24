@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-and-unit-tests:
+    name: Typecheck, Lint, Unit Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Vitest unit & vitest-axe WCAG tests
+        run: npm test
+
+      - name: Build production web app
+        run: npm run build
+
+      - name: Build Storybook static bundle
+        run: npm run build-storybook
+
+  e2e-and-wcag:
+    name: Playwright E2E & WCAG 2.2 AA (Desktop, Tablet, Mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium browser
+        run: npx --workspace=web playwright install --with-deps chromium
+
+      - name: Build production web app
+        run: npm run build
+
+      - name: Run Playwright E2E & @axe-core/playwright WCAG 2.2 AA suite
+        run: npm run test:e2e
+
+      - name: Upload Playwright failure artifacts
+        if: ${{ !cancelled() && failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          retention-days: 7
